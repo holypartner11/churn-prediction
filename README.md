@@ -42,7 +42,7 @@ pip install -r requirements.txt
 python app.py
 ```
 
-应用将在 http://localhost:5000 启动
+应用将在 http://localhost:5001 启动
 
 ## 批量预测文件格式
 
