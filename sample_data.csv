@@ -1,0 +1,11 @@
+MonthlyCharges,SeniorCitizen,tenure,PaymentMethod,InternetService,Contract
+65.50,0,12,Electronic check,Fiber optic,Month-to-month
+89.99,1,24,Credit card,DSL,One year
+45.00,0,6,Mailed check,No,Month-to-month
+75.30,0,36,Bank transfer,Fiber optic,Two year
+55.00,1,3,Electronic check,DSL,Month-to-month
+99.99,0,48,Credit card,Fiber optic,One year
+30.00,0,1,Mailed check,No,Month-to-month
+80.50,1,18,Electronic check,Fiber optic,Month-to-month
+60.00,0,24,Bank transfer,DSL,Two year
+95.00,0,60,Credit card,Fiber optic,Two year
