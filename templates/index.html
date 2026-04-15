@@ -188,12 +188,52 @@
             background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
         }
         
-        .risk-medium {
+        .risk-较高 {
             background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
         }
         
-        .risk-low {
+        .risk-中等 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333 !important;
+        }
+        
+        .risk-较低, .risk-low {
             background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+        }
+        
+        /* 模型切换器样式 */
+        .model-switcher {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 15px 25px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        
+        .model-switcher label {
+            color: white;
+            margin: 0;
+            font-weight: 600;
+        }
+        
+        .model-switcher select {
+            width: auto;
+            min-width: 150px;
+            background: white;
+            color: #333;
+            border: none;
+            padding: 8px 15px;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        
+        .model-info {
+            font-size: 0.85rem;
+            opacity: 0.9;
+            margin-top: 5px;
         }
         
         .recommendations {
@@ -299,8 +339,28 @@
             font-weight: bold;
             padding: 5px 15px;
             border-radius: 15px;
-            color: white;
             display: inline-block;
+        }
+        
+        .risk-cell.risk-high {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);
+            color: white;
+        }
+        
+        .risk-cell.risk-较高 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);
+            color: white;
+        }
+        
+        .risk-cell.risk-中等 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333;
+        }
+        
+        .risk-cell.risk-较低,
+        .risk-cell.risk-low {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);
+            color: white;
         }
         
         .error-message {
@@ -383,6 +443,18 @@
         
         <!-- Single Prediction Tab -->
         <div id="single-tab" class="card">
+            <!-- 模型切换器 -->
+            <div class="model-switcher">
+                <div>
+                    <label for="single-model-select">🤖 当前模型:</label>
+                    <select id="single-model-select" onchange="switchModel(this.value)">
+                        <option value="original">原模型 (7特征)</option>
+                        <option value="rebuilt">重建模型 (3特征)</option>
+                    </select>
+                    <div class="model-info" id="single-model-info">原模型: 按 notebook 口径重新训练的 7 特征模型（阈值由训练结果动态计算）</div>
+                </div>
+            </div>
+            
             <h2 style="margin-bottom: 25px; color: #333;">客户信息录入</h2>
             <form id="predict-form">
                 <div class="form-row">
@@ -463,6 +535,18 @@
         
         <!-- Batch Prediction Tab -->
         <div id="batch-tab" class="card hidden">
+            <!-- 模型切换器 -->
+            <div class="model-switcher">
+                <div>
+                    <label for="batch-model-select">🤖 当前模型:</label>
+                    <select id="batch-model-select" onchange="switchModel(this.value)">
+                        <option value="original">原模型 (7特征)</option>
+                        <option value="rebuilt">重建模型 (3特征)</option>
+                    </select>
+                    <div class="model-info" id="batch-model-info">原模型: SeniorCitizen+tenure+PaymentMethod(3哑变量)+InternetService_enc+Contract_enc</div>
+                </div>
+            </div>
+            
             <h2 style="margin-bottom: 25px; color: #333;">批量预测</h2>
             
             <div class="upload-area" id="upload-area">
@@ -496,15 +580,19 @@
                         <div class="stat-value" id="total-count">0</div>
                         <div class="stat-label">总客户数</div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);">
                         <div class="stat-value" id="high-risk-count">0</div>
                         <div class="stat-label">高风险</div>
                     </div>
-                    <div class="stat-card">
-                        <div class="stat-value" id="medium-risk-count">0</div>
-                        <div class="stat-label">中风险</div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);">
+                        <div class="stat-value" id="higher-risk-count">0</div>
+                        <div class="stat-label">较高风险</div>
                     </div>
-                    <div class="stat-card">
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #333;">
+                        <div class="stat-value" id="medium-risk-count">0</div>
+                        <div class="stat-label">中等风险</div>
+                    </div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);">
                         <div class="stat-value" id="low-risk-count">0</div>
                         <div class="stat-label">低风险</div>
                     </div>
@@ -561,6 +649,9 @@
             
             const formData = new FormData(this);
             
+            // 保存预测数据用于切换模型时重新预测
+            lastSinglePredictionData = formData;
+            
             try {
                 const response = await fetch('/predict', {
                     method: 'POST',
@@ -573,8 +664,8 @@
                     document.getElementById('probability-value').textContent = data.probability + '%';
                     
                     const badge = document.getElementById('risk-badge');
-                    badge.textContent = data.risk_level + '风险';
-                    badge.className = 'risk-badge risk-' + data.risk_level.toLowerCase();
+                    badge.textContent = data.risk_level;
+                    badge.className = 'risk-badge ' + getRiskClass(data.risk_level);
                     
                     const list = document.getElementById('recommendations-list');
                     list.innerHTML = data.recommendations.map(r => `<li>${r}</li>`).join('');
@@ -624,6 +715,9 @@
             document.getElementById('batch-success').style.display = 'none';
             document.getElementById('batch-results').style.display = 'none';
             
+            // 保存文件用于切换模型时重新预测
+            lastBatchFile = file;
+            
             const formData = new FormData();
             formData.append('file', file);
             
@@ -647,14 +741,165 @@
             }
         }
         
+        // 当前模型状态
+        let currentModel = 'original';
+        
+        // 存储最后一次预测的数据
+        let lastSinglePredictionData = null;
+        let lastBatchFile = null;
+        let lastBatchResults = null;
+        
+        // 模型阈值信息
+        const modelThresholds = {
+            'original': '原模型: 按 notebook 口径重新训练的 7 特征模型（阈值由训练结果动态计算）',
+            'rebuilt': '重建模型: 按 notebook 口径重新训练的 3 特征模型（阈值由训练结果动态计算）'
+        };
+        
+        // 切换模型
+        async function switchModel(model) {
+            currentModel = model;
+            
+            // 同步两个下拉框
+            document.getElementById('single-model-select').value = model;
+            document.getElementById('batch-model-select').value = model;
+            
+            // 更新阈值信息
+            document.getElementById('single-model-info').textContent = modelThresholds[model];
+            document.getElementById('batch-model-info').textContent = modelThresholds[model];
+            
+            // 调用后端切换模型
+            try {
+                const response = await fetch('/model', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ model: model })
+                });
+                const data = await response.json();
+                if (data.success) {
+                    console.log('模型已切换到:', model);
+                    
+                    // 如果有单个预测数据，自动重新预测
+                    if (lastSinglePredictionData) {
+                        await rePredictSingle();
+                    }
+                    
+                    // 如果有批量预测文件，自动重新预测
+                    if (lastBatchFile) {
+                        await rePredictBatch();
+                    }
+                }
+            } catch (error) {
+                console.error('切换模型失败:', error);
+            }
+        }
+        
+        // 重新进行单个预测
+        async function rePredictSingle() {
+            if (!lastSinglePredictionData) return;
+            
+            document.getElementById('single-loading').style.display = 'block';
+            document.getElementById('single-error').style.display = 'none';
+            
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: lastSinglePredictionData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    document.getElementById('probability-value').textContent = data.probability + '%';
+                    
+                    const badge = document.getElementById('risk-badge');
+                    badge.textContent = data.risk_level;
+                    badge.className = 'risk-badge ' + getRiskClass(data.risk_level);
+                    
+                    const list = document.getElementById('recommendations-list');
+                    list.innerHTML = data.recommendations.map(r => `<li>${r}</li>`).join('');
+                    
+                    document.getElementById('single-result').classList.add('show');
+                }
+            } catch (error) {
+                console.error('重新预测失败:', error);
+            } finally {
+                document.getElementById('single-loading').style.display = 'none';
+            }
+        }
+        
+        // 重新进行批量预测
+        async function rePredictBatch() {
+            if (!lastBatchFile) return;
+            
+            document.getElementById('batch-loading').style.display = 'block';
+            document.getElementById('batch-error').style.display = 'none';
+            document.getElementById('batch-success').style.display = 'none';
+            
+            const formData = new FormData();
+            formData.append('file', lastBatchFile);
+            
+            try {
+                const response = await fetch('/batch_predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                
+                const data = await response.json();
+                
+                if (data.success) {
+                    displayBatchResults(data);
+                    document.getElementById('batch-success').textContent = `已使用新模型重新预测 ${data.count} 条记录`;
+                    document.getElementById('batch-success').style.display = 'block';
+                }
+            } catch (error) {
+                console.error('重新预测失败:', error);
+            } finally {
+                document.getElementById('batch-loading').style.display = 'none';
+            }
+        }
+        
+        // 获取风险等级对应的CSS类名
+        function getRiskClass(riskLevel) {
+            if (!riskLevel) return 'risk-low';
+            
+            // 处理中文风险等级
+            if (riskLevel.includes('高')) {
+                if (riskLevel.includes('较高')) {
+                    return 'risk-较高';
+                }
+                return 'risk-high';
+            } else if (riskLevel.includes('中等') || riskLevel.includes('中')) {
+                return 'risk-中等';
+            } else if (riskLevel.includes('较低')) {
+                return 'risk-较低';
+            } else if (riskLevel.includes('低')) {
+                return 'risk-low';
+            }
+            
+            // 处理英文风险等级
+            const lowerRisk = riskLevel.toLowerCase();
+            if (lowerRisk.includes('high')) {
+                return 'risk-high';
+            } else if (lowerRisk.includes('medium')) {
+                return 'risk-中等';
+            } else if (lowerRisk.includes('low')) {
+                return 'risk-low';
+            }
+            
+            return 'risk-low';
+        }
+        
         function displayBatchResults(data) {
             document.getElementById('total-count').textContent = data.count;
             
-            const highRisk = data.results.filter(r => r.risk_level === 'High').length;
-            const mediumRisk = data.results.filter(r => r.risk_level === 'Medium').length;
-            const lowRisk = data.results.filter(r => r.risk_level === 'Low').length;
+            // 统计各风险等级数量
+            const highRisk = data.results.filter(r => r.risk_level === '高风险').length;
+            const higherRisk = data.results.filter(r => r.risk_level === '较高风险').length;
+            const mediumRisk = data.results.filter(r => r.risk_level === '中等风险').length;
+            const lowRisk = data.results.filter(r => r.risk_level === '低风险').length;
             
             document.getElementById('high-risk-count').textContent = highRisk;
+            document.getElementById('higher-risk-count').textContent = higherRisk;
             document.getElementById('medium-risk-count').textContent = mediumRisk;
             document.getElementById('low-risk-count').textContent = lowRisk;
             
@@ -669,7 +914,7 @@
                     <td>${r.internet_service}</td>
                     <td>${r.contract}</td>
                     <td>${r.probability}%</td>
-                    <td><span class="risk-cell risk-${r.risk_level.toLowerCase()}">${r.risk_level}</span></td>
+                    <td><span class="risk-cell ${getRiskClass(r.risk_level)}">${r.risk_level}</span></td>
                 </tr>
             `).join('');
             
