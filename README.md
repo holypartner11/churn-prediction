@@ -23,7 +23,7 @@
 
 ## 模型说明
 
-应用启动时会根据 [customerchurn.csv](customerchurn.csv) 重新训练两套模型，保证和 [tel_logistic_v3.ipynb](tel_logistic_v3.ipynb) 的数据处理逻辑一致。
+应用启动时会根据 [customerchurn.csv](customerchurn.csv) 重新训练两套模型，保证和 [source/tel_logistic_v3.ipynb](source/tel_logistic_v3.ipynb) 的数据处理逻辑一致。
 
 - 原模型：7 个特征
 - 重建模型：3 个特征
@@ -43,8 +43,12 @@
 
 ### 本地启动
 
+Windows 推荐直接双击 [run-me-windows.bat](run-me-windows.bat)，它会自动绕过 PowerShell 执行策略并启动服务。
+
+Mac 推荐直接双击 [run-me-macos.command](run-me-macos.command)，它会调用 [start-app.sh](start-app.sh) 启动服务。
+
 ```bash
-cd churn_app
+cd churn-prediction-main
 pip install -r requirements.txt
 python app.py
 ```
@@ -68,16 +72,25 @@ MonthlyCharges,SeniorCitizen,tenure,PaymentMethod,InternetService,Contract
 ## 项目结构
 
 ```
-churn_app/
+churn-prediction-main/
 ├── app.py
 ├── api/
 │   └── index.py
 ├── model_service.py
+├── customerchurn.csv
+├── data/
+│   └── sample_data.csv
+├── source/
+│   └── tel_logistic_v3.ipynb
 ├── templates/
 │   └── index.html
 ├── requirements.txt
 ├── README.md
 ├── Procfile
+├── run-me-windows.bat
+├── run-me-macos.command
+├── start-app.ps1
+├── start-app.sh
 └── vercel.json
 ```
 
