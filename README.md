@@ -55,7 +55,7 @@ python app.py
 
 应用默认运行在 `http://localhost:5001`。
 
-### Vercel 部署
+### Vercel 部署（暂不支持）
 
 Vercel 入口在 [api/index.py](api/index.py)，路由配置在 [vercel.json](vercel.json)。
 
