@@ -1,0 +1,653 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>客户流失预测系统</title>
+    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+        .container { max-width: 1200px; margin: 0 auto; }
+        h1 {
+            text-align: center; color: white; margin-bottom: 30px;
+            font-size: 2.5rem; text-shadow: 2px 2px 4px rgba(0,0,0,0.2);
+        }
+        .tabs {
+            display: flex; justify-content: center; margin-bottom: 20px; gap: 10px;
+        }
+        .tab-btn {
+            padding: 12px 30px; border: none; background: rgba(255,255,255,0.2);
+            color: white; font-size: 16px; cursor: pointer; border-radius: 25px;
+            transition: all 0.3s ease;
+        }
+        .tab-btn:hover { background: rgba(255,255,255,0.3); }
+        .tab-btn.active { background: white; color: #667eea; }
+        .card {
+            background: white; border-radius: 15px; padding: 30px;
+            box-shadow: 0 10px 40px rgba(0,0,0,0.2); margin-bottom: 20px;
+        }
+        .form-group { margin-bottom: 20px; }
+        label { display: block; margin-bottom: 8px; color: #333; font-weight: 600; }
+        input[type="number"], select {
+            width: 100%; padding: 12px 15px; border: 2px solid #e0e0e0;
+            border-radius: 8px; font-size: 16px; transition: border-color 0.3s;
+        }
+        input[type="number"]:focus, select:focus { outline: none; border-color: #667eea; }
+        .form-row {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(250px, 1fr)); gap: 20px;
+        }
+        .btn {
+            padding: 14px 40px; border: none; border-radius: 8px;
+            font-size: 16px; cursor: pointer; transition: all 0.3s ease; font-weight: 600;
+        }
+        .btn-primary {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .btn-success {
+            background: linear-gradient(135deg, #11998e 0%, #38ef7d 100%); color: white;
+        }
+        .btn-success:hover {
+            transform: translateY(-2px); box-shadow: 0 5px 20px rgba(17, 153, 142, 0.4);
+        }
+        .btn-center { text-align: center; margin-top: 30px; }
+        .result-card {
+            background: linear-gradient(135deg, #f5f7fa 0%, #c3cfe2 100%);
+            border-radius: 15px; padding: 30px; margin-top: 30px; display: none;
+        }
+        .result-card.show {
+            display: block; animation: slideIn 0.5s ease;
+        }
+        @keyframes slideIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        .probability-display { text-align: center; margin-bottom: 25px; }
+        .probability-value { font-size: 4rem; font-weight: bold; color: #667eea; }
+        .probability-label { font-size: 1.2rem; color: #666; }
+        .risk-badge {
+            display: inline-block; padding: 10px 30px; border-radius: 25px;
+            font-size: 1.2rem; font-weight: bold; color: white; margin-top: 15px;
+        }
+        .risk-high { background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); }
+        .risk-较高 { background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); }
+        .risk-中等 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%);
+            color: #333 !important;
+        }
+        .risk-较低, .risk-low { background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); }
+        .model-switcher {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white;
+            padding: 15px 25px; border-radius: 10px; margin-bottom: 20px;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .model-switcher label { color: white; margin: 0; font-weight: 600; }
+        .model-switcher select {
+            width: auto; min-width: 150px; background: white; color: #333;
+            border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer;
+        }
+        .model-info { font-size: 0.85rem; opacity: 0.9; margin-top: 5px; }
+        .recommendations { margin-top: 25px; }
+        .recommendations h3 { color: #333; margin-bottom: 15px; }
+        .recommendations ul { list-style: none; }
+        .recommendations li {
+            padding: 10px 0; padding-left: 30px; position: relative; color: #555;
+        }
+        .recommendations li:before {
+            content: "✓"; position: absolute; left: 0; color: #667eea; font-weight: bold;
+        }
+        .upload-area {
+            border: 3px dashed #667eea; border-radius: 15px; padding: 60px 20px;
+            text-align: center; background: #f8f9ff; transition: all 0.3s ease;
+        }
+        .upload-area:hover { background: #eef1ff; border-color: #764ba2; }
+        .upload-area.dragover { background: #e8ecff; border-color: #764ba2; }
+        .upload-icon { font-size: 3rem; margin-bottom: 15px; }
+        .file-input { display: none; }
+        .file-label {
+            display: inline-block; padding: 12px 30px;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; border-radius: 25px; cursor: pointer; margin-top: 15px;
+            transition: all 0.3s ease;
+        }
+        .file-label:hover {
+            transform: translateY(-2px); box-shadow: 0 5px 20px rgba(102, 126, 234, 0.4);
+        }
+        .batch-results { margin-top: 30px; overflow-x: auto; }
+        table { width: 100%; border-collapse: collapse; margin-top: 20px; }
+        th, td { padding: 12px; text-align: left; border-bottom: 1px solid #e0e0e0; }
+        th {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%); color: white; font-weight: 600;
+        }
+        tr:hover { background: #f5f5f5; }
+        .risk-cell {
+            font-weight: bold; padding: 5px 15px; border-radius: 15px; display: inline-block;
+        }
+        .risk-cell.risk-high {
+            background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%); color: white;
+        }
+        .risk-cell.risk-较高 {
+            background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%); color: white;
+        }
+        .risk-cell.risk-中等 {
+            background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #333;
+        }
+        .risk-cell.risk-较低,
+        .risk-cell.risk-low {
+            background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%); color: white;
+        }
+        .error-message {
+            background: #ffebee; color: #c62828; padding: 15px;
+            border-radius: 8px; margin-top: 20px; display: none;
+        }
+        .success-message {
+            background: #e8f5e9; color: #2e7d32; padding: 15px;
+            border-radius: 8px; margin-top: 20px; display: none;
+        }
+        .hidden { display: none !important; }
+        .loading { text-align: center; padding: 20px; display: none; }
+        .spinner {
+            border: 4px solid #f3f3f3; border-top: 4px solid #667eea;
+            border-radius: 50%; width: 40px; height: 40px;
+            animation: spin 1s linear infinite; margin: 0 auto 15px;
+        }
+        @keyframes spin { 0% { transform: rotate(0deg); } 100% { transform: rotate(360deg); } }
+        .stats-cards {
+            display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 20px; margin-bottom: 30px;
+        }
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white; padding: 20px; border-radius: 10px; text-align: center;
+        }
+        .stat-value { font-size: 2rem; font-weight: bold; }
+        .stat-label { font-size: 0.9rem; opacity: 0.9; }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🎯 客户流失预测系统</h1>
+        <div class="tabs">
+            <button class="tab-btn active" onclick="switchTab('single')">单个预测</button>
+            <button class="tab-btn" onclick="switchTab('batch')">批量预测</button>
+        </div>
+
+        <!-- Single Prediction Tab -->
+        <div id="single-tab" class="card">
+            <div class="model-switcher">
+                <div>
+                    <label for="single-model-select">🤖 当前模型:</label>
+                    <select id="single-model-select" onchange="switchModel(this.value)">
+                        <option value="original">原模型 (7特征)</option>
+                        <option value="rebuilt">重建模型 (3特征)</option>
+                    </select>
+                    <div class="model-info" id="single-model-info">原模型: SeniorCitizen+tenure+PaymentMethod(3哑变量)+InternetService_enc+Contract_enc</div>
+                </div>
+            </div>
+            <h2 style="margin-bottom: 25px; color: #333;">客户信息录入</h2>
+            <form id="predict-form">
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="monthly_charges">月消费金额 (MonthlyCharges)</label>
+                        <input type="number" id="monthly_charges" step="0.01" min="0" placeholder="例如: 65.50">
+                    </div>
+                    <div class="form-group">
+                        <label for="senior_citizen">是否老年客户 (SeniorCitizen)</label>
+                        <select id="senior_citizen" required>
+                            <option value="0">否 (0)</option>
+                            <option value="1">是 (1)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="tenure">在网时长/月 (tenure)</label>
+                        <input type="number" id="tenure" min="0" required placeholder="例如: 12">
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="payment_method">支付方式 (PaymentMethod)</label>
+                        <select id="payment_method" required>
+                            <option value="Electronic check">电子支票 (Electronic check)</option>
+                            <option value="Mailed check">邮寄支票 (Mailed check)</option>
+                            <option value="Bank transfer">银行转账 (Bank transfer)</option>
+                            <option value="Credit card">信用卡 (Credit card)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="internet_service">互联网服务 (InternetService)</label>
+                        <select id="internet_service" required>
+                            <option value="DSL">DSL</option>
+                            <option value="Fiber optic">光纤 (Fiber optic)</option>
+                            <option value="No">无 (No)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="contract">合同类型 (Contract)</label>
+                        <select id="contract" required>
+                            <option value="Month-to-month">月付 (Month-to-month)</option>
+                            <option value="One year">一年期 (One year)</option>
+                            <option value="Two year">两年期 (Two year)</option>
+                        </select>
+                    </div>
+                </div>
+                <div class="btn-center">
+                    <button type="submit" class="btn btn-primary">开始预测</button>
+                </div>
+            </form>
+            <div class="loading" id="single-loading">
+                <div class="spinner"></div><p>正在分析...</p>
+            </div>
+            <div class="error-message" id="single-error"></div>
+            <div class="result-card" id="single-result">
+                <div class="probability-display">
+                    <div class="probability-value" id="probability-value">0%</div>
+                    <div class="probability-label">流失概率</div>
+                    <div class="risk-badge" id="risk-badge">低风险</div>
+                </div>
+                <div class="recommendations">
+                    <h3>📋 策略建议</h3>
+                    <ul id="recommendations-list"></ul>
+                </div>
+            </div>
+        </div>
+
+        <!-- Batch Prediction Tab -->
+        <div id="batch-tab" class="card hidden">
+            <div class="model-switcher">
+                <div>
+                    <label for="batch-model-select">🤖 当前模型:</label>
+                    <select id="batch-model-select" onchange="switchModel(this.value)">
+                        <option value="original">原模型 (7特征)</option>
+                        <option value="rebuilt">重建模型 (3特征)</option>
+                    </select>
+                    <div class="model-info" id="batch-model-info">原模型: SeniorCitizen+tenure+PaymentMethod(3哑变量)+InternetService_enc+Contract_enc</div>
+                </div>
+            </div>
+            <h2 style="margin-bottom: 25px; color: #333;">批量预测</h2>
+            <div class="upload-area" id="upload-area">
+                <div class="upload-icon">📁</div>
+                <p style="font-size: 1.1rem; color: #555; margin-bottom: 10px;">拖拽文件到此处或点击上传</p>
+                <p style="color: #888; font-size: 0.9rem;">支持 CSV 或 Excel 格式 (.csv, .xlsx, .xls)</p>
+                <p style="color: #888; font-size: 0.85rem; margin-top: 10px;">文件需包含列: SeniorCitizen, tenure, PaymentMethod, InternetService, Contract</p>
+                <label class="file-label">选择文件
+                    <input type="file" class="file-input" id="batch-file" accept=".csv,.xlsx,.xls">
+                </label>
+            </div>
+            <div class="loading" id="batch-loading">
+                <div class="spinner"></div><p>正在处理...</p>
+            </div>
+            <div class="error-message" id="batch-error"></div>
+            <div class="success-message" id="batch-success"></div>
+            <div class="batch-results" id="batch-results" style="display: none;">
+                <div class="stats-cards">
+                    <div class="stat-card"><div class="stat-value" id="total-count">0</div><div class="stat-label">总客户数</div></div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #ff416c 0%, #ff4b2b 100%);"><div class="stat-value" id="high-risk-count">0</div><div class="stat-label">高风险</div></div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #f093fb 0%, #f5576c 100%);"><div class="stat-value" id="higher-risk-count">0</div><div class="stat-label">较高风险</div></div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #fa709a 0%, #fee140 100%); color: #333;"><div class="stat-value" id="medium-risk-count">0</div><div class="stat-label">中等风险</div></div>
+                    <div class="stat-card" style="background: linear-gradient(135deg, #4facfe 0%, #00f2fe 100%);"><div class="stat-value" id="low-risk-count">0</div><div class="stat-label">低风险</div></div>
+                </div>
+                <div style="overflow-x: auto;">
+                    <table id="results-table">
+                        <thead>
+                            <tr><th>序号</th><th>月消费</th><th>老年客户</th><th>在网时长</th><th>支付方式</th><th>互联网服务</th><th>合同类型</th><th>流失概率</th><th>风险等级</th></tr>
+                        </thead>
+                        <tbody id="results-tbody"></tbody>
+                    </table>
+                </div>
+                <div class="btn-center">
+                    <button class="btn btn-success" onclick="exportResults()">📥 导出结果到 Excel</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+    // ====== 模型参数（从 model_service.py 提取） ======
+    const MODELS = {
+        original: {
+            featureNames: ['SeniorCitizen','tenure','InternetService_enc','Contract_enc','Pay_Credit card','Pay_Electronic check','Pay_Mailed check'],
+            means: [0.16444351813255523,33.166736140058354,1.2378074197582325,0.704668611921634,0.22134222592746977,0.3311796581909129,0.21988328470195914],
+            scales: [0.37067755189213064,24.323059332994525,0.7706665929639092,0.8359018192442154,0.4151503883521521,0.4706375380178073,0.41416738863729513],
+            coef: [0.15805723528881882,-0.7118708104997427,0.7366773996124829,-0.6106861663197206,-0.018280213375845993,0.22708929029305186,-0.016817517958614327],
+            intercept: -0.5554357518517902,
+            thresholds: { low: 0.0, low_mid: 0.35, high_mid: 0.60, high: 0.70 },
+        },
+        rebuilt: {
+            featureNames: ['tenure','InternetService_enc','Is_Electronic_check'],
+            means: [33.166736140058354,1.2378074197582325,0.3311796581909129],
+            scales: [24.323059332994525,0.7706665929639092,0.4706375380178073],
+            coef: [-1.0283255048796824,0.8973286006083914,0.3069817733068087],
+            intercept: -0.4431769321874395,
+            thresholds: { low: 0.0, low_mid: 0.30, high_mid: 0.55, high: 0.70 },
+        }
+    };
+
+    const INTERNET_MAP = { 'No': 0, 'DSL': 1, 'Fiber optic': 2 };
+    const CONTRACT_MAP = { 'Month-to-month': 0, 'One year': 1, 'Two year': 2 };
+
+    const RECOMMENDATIONS = {
+        '高风险': [
+            '立即联系客户，了解不满原因',
+            '提供专属优惠或折扣方案',
+            '考虑升级服务或提供增值服务',
+            '安排客户经理进行一对一沟通',
+            '提供合同升级优惠（如月付转年付）',
+        ],
+        '较高风险': [
+            '主动联系客户，了解使用体验',
+            '提供针对性产品推荐或升级方案',
+            '发送满意度调查并跟进反馈',
+            '提供限时优惠以提升忠诚度',
+            '定期跟进客户使用情况',
+        ],
+        '中等风险': [
+            '发送客户满意度调查',
+            '提供针对性的产品推荐',
+            '定期跟进客户使用情况',
+            '提供自助服务优化建议',
+            '考虑提供小幅优惠以提升忠诚度',
+        ],
+        '低风险': [
+            '保持常规客户关系维护',
+            '定期发送产品更新信息',
+            '邀请参与推荐计划',
+            '提供增值服务介绍',
+            '保持良好的服务质量',
+        ],
+    };
+
+    // ====== 核心预测逻辑 ======
+    function sigmoid(z) {
+        return 1 / (1 + Math.exp(-z));
+    }
+
+    function buildFeatures(row, model) {
+        if (model === 'original') {
+            return [
+                parseFloat(row.SeniorCitizen),
+                parseFloat(row.tenure),
+                INTERNET_MAP[row.InternetService] ?? 0,
+                CONTRACT_MAP[row.Contract] ?? 0,
+                row.PaymentMethod === 'Credit card' ? 1 : 0,
+                row.PaymentMethod === 'Electronic check' ? 1 : 0,
+                row.PaymentMethod === 'Mailed check' ? 1 : 0,
+            ];
+        }
+        return [
+            parseFloat(row.tenure),
+            INTERNET_MAP[row.InternetService] ?? 0,
+            row.PaymentMethod === 'Electronic check' ? 1 : 0,
+        ];
+    }
+
+    function predict(row, model) {
+        const spec = MODELS[model];
+        const features = buildFeatures(row, model);
+        // StandardScaler + linear + sigmoid
+        let z = spec.intercept;
+        for (let i = 0; i < features.length; i++) {
+            const scaled = (features[i] - spec.means[i]) / spec.scales[i];
+            z += spec.coef[i] * scaled;
+        }
+        return sigmoid(z);
+    }
+
+    function getRiskLevel(probability, model) {
+        const t = MODELS[model].thresholds;
+        if (probability >= t.high) return '高风险';
+        if (probability >= t.high_mid) return '较高风险';
+        if (probability >= t.low_mid) return '中等风险';
+        return '低风险';
+    }
+
+    function getRecommendations(level) {
+        return RECOMMENDATIONS[level] || [];
+    }
+
+    function validate(row) {
+        const required = ['SeniorCitizen','tenure','PaymentMethod','InternetService','Contract'];
+        const missing = required.filter(c => row[c] === undefined || row[c] === null || row[c] === '');
+        if (missing.length) throw new Error('缺少必填列: ' + missing.join(', '));
+
+        const validPayments = ['Electronic check','Mailed check','Bank transfer','Credit card'];
+        const validInternet = ['DSL','Fiber optic','No'];
+        const validContracts = ['Month-to-month','One year','Two year'];
+
+        if (!validPayments.includes(row.PaymentMethod)) throw new Error('无效支付方式: ' + row.PaymentMethod);
+        if (!validInternet.includes(row.InternetService)) throw new Error('无效互联网服务: ' + row.InternetService);
+        if (!validContracts.includes(row.Contract)) throw new Error('无效合同类型: ' + row.Contract);
+    }
+
+    // ====== UI 逻辑 ======
+    let currentModel = 'original';
+    let lastBatchRows = [];
+
+    function switchTab(tab) {
+        document.querySelectorAll('.tab-btn').forEach((btn, idx) => {
+            btn.classList.toggle('active', (tab === 'single' && idx === 0) || (tab === 'batch' && idx === 1));
+        });
+        document.getElementById('single-tab').classList.toggle('hidden', tab !== 'single');
+        document.getElementById('batch-tab').classList.toggle('hidden', tab !== 'batch');
+    }
+
+    function switchModel(model) {
+        currentModel = model;
+        document.getElementById('single-model-select').value = model;
+        document.getElementById('batch-model-select').value = model;
+        const info = {
+            original: '原模型: SeniorCitizen+tenure+PaymentMethod(3哑变量)+InternetService_enc+Contract_enc',
+            rebuilt: '重建模型: tenure+InternetService_enc+Is_Electronic_check'
+        };
+        document.getElementById('single-model-info').textContent = info[model];
+        document.getElementById('batch-model-info').textContent = info[model];
+    }
+
+    function getRiskClass(level) {
+        if (level === '高风险') return 'risk-high';
+        if (level === '较高风险') return 'risk-较高';
+        if (level === '中等风险') return 'risk-中等';
+        return 'risk-low';
+    }
+
+    function showError(id, msg) {
+        const el = document.getElementById(id);
+        el.textContent = msg;
+        el.style.display = 'block';
+    }
+    function hideError(id) { document.getElementById(id).style.display = 'none'; }
+
+    // Single prediction
+    document.getElementById('predict-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        hideError('single-error');
+        document.getElementById('single-result').classList.remove('show');
+        document.getElementById('single-loading').style.display = 'block';
+
+        setTimeout(() => {
+            try {
+                const tenure = parseInt(document.getElementById('tenure').value);
+                if (isNaN(tenure) || tenure < 0) throw new Error('在网时长必须为非负数');
+                const sc = parseInt(document.getElementById('senior_citizen').value);
+                if (sc !== 0 && sc !== 1) throw new Error('SeniorCitizen 必须是 0 或 1');
+
+                const row = {
+                    SeniorCitizen: sc,
+                    tenure: tenure,
+                    PaymentMethod: document.getElementById('payment_method').value,
+                    InternetService: document.getElementById('internet_service').value,
+                    Contract: document.getElementById('contract').value,
+                };
+                validate(row);
+                const prob = predict(row, currentModel);
+                const level = getRiskLevel(prob, currentModel);
+                const recs = getRecommendations(level);
+
+                document.getElementById('probability-value').textContent = (prob * 100).toFixed(2) + '%';
+                const badge = document.getElementById('risk-badge');
+                badge.textContent = level;
+                badge.className = 'risk-badge ' + getRiskClass(level);
+                document.getElementById('recommendations-list').innerHTML = recs.map(r => `<li>${r}</li>`).join('');
+                document.getElementById('single-result').classList.add('show');
+            } catch (err) {
+                showError('single-error', err.message);
+            } finally {
+                document.getElementById('single-loading').style.display = 'none';
+            }
+        }, 200);
+    });
+
+    // Batch upload
+    const uploadArea = document.getElementById('upload-area');
+    const fileInput = document.getElementById('batch-file');
+
+    uploadArea.addEventListener('dragover', e => { e.preventDefault(); uploadArea.classList.add('dragover'); });
+    uploadArea.addEventListener('dragleave', () => uploadArea.classList.remove('dragover'));
+    uploadArea.addEventListener('drop', e => {
+        e.preventDefault(); uploadArea.classList.remove('dragover');
+        if (e.dataTransfer.files.length) handleFile(e.dataTransfer.files[0]);
+    });
+    fileInput.addEventListener('change', e => { if (e.target.files.length) handleFile(e.target.files[0]); });
+
+    function handleFile(file) {
+        hideError('batch-error');
+        document.getElementById('batch-success').style.display = 'none';
+        document.getElementById('batch-results').style.display = 'none';
+        document.getElementById('batch-loading').style.display = 'block';
+
+        const reader = new FileReader();
+        reader.onload = function(e) {
+            try {
+                let rows;
+                if (file.name.toLowerCase().endsWith('.csv')) {
+                    rows = parseCSV(e.target.result);
+                } else {
+                    const data = new Uint8Array(e.target.result);
+                    const workbook = XLSX.read(data, { type: 'array' });
+                    const firstSheet = workbook.Sheets[workbook.SheetNames[0]];
+                    rows = XLSX.utils.sheet_to_json(firstSheet);
+                }
+                runBatch(rows);
+            } catch (err) {
+                showError('batch-error', '解析失败: ' + err.message);
+            } finally {
+                document.getElementById('batch-loading').style.display = 'none';
+            }
+        };
+        if (file.name.toLowerCase().endsWith('.csv')) {
+            reader.readAsText(file);
+        } else {
+            reader.readAsArrayBuffer(file);
+        }
+    }
+
+    function parseCSV(text) {
+        const lines = text.trim().split(/\r?\n/);
+        if (!lines.length) return [];
+        const headers = lines[0].split(',').map(h => h.trim().replace(/^"|"$/g, ''));
+        return lines.slice(1).map(line => {
+            // 简单 CSV 解析（不支持带逗号的引号字段，基本够用）
+            const values = line.split(',').map(v => v.trim().replace(/^"|"$/g, ''));
+            const obj = {};
+            headers.forEach((h, i) => obj[h] = values[i]);
+            return obj;
+        }).filter(r => Object.values(r).some(v => v !== ''));
+    }
+
+    function runBatch(rows) {
+        const results = [];
+        const errors = [];
+        for (let i = 0; i < rows.length; i++) {
+            try {
+                validate(rows[i]);
+                const prob = predict(rows[i], currentModel);
+                const level = getRiskLevel(prob, currentModel);
+                const mc = parseFloat(rows[i].MonthlyCharges);
+                results.push({
+                    row: i + 1,
+                    monthly_charges: isNaN(mc) ? null : mc,
+                    senior_citizen: parseInt(rows[i].SeniorCitizen),
+                    tenure: parseInt(rows[i].tenure),
+                    payment_method: rows[i].PaymentMethod,
+                    internet_service: rows[i].InternetService,
+                    contract: rows[i].Contract,
+                    probability: (prob * 100).toFixed(2),
+                    risk_level: level,
+                    recommendations: getRecommendations(level).join('; '),
+                });
+            } catch (err) {
+                errors.push(`第 ${i+1} 行: ${err.message}`);
+            }
+        }
+        lastBatchRows = results;
+
+        if (errors.length) {
+            showError('batch-error', errors.join('\n'));
+        }
+        if (results.length === 0) {
+            showError('batch-error', '没有成功预测任何记录');
+            return;
+        }
+
+        // Stats
+        document.getElementById('total-count').textContent = results.length;
+        document.getElementById('high-risk-count').textContent = results.filter(r => r.risk_level === '高风险').length;
+        document.getElementById('higher-risk-count').textContent = results.filter(r => r.risk_level === '较高风险').length;
+        document.getElementById('medium-risk-count').textContent = results.filter(r => r.risk_level === '中等风险').length;
+        document.getElementById('low-risk-count').textContent = results.filter(r => r.risk_level === '低风险').length;
+
+        // Table
+        document.getElementById('results-tbody').innerHTML = results.map(r => `
+            <tr>
+                <td>${r.row}</td>
+                <td>${r.monthly_charges !== null ? r.monthly_charges.toFixed(2) : '-'}</td>
+                <td>${r.senior_citizen === 1 ? '是' : '否'}</td>
+                <td>${r.tenure}</td>
+                <td>${r.payment_method}</td>
+                <td>${r.internet_service}</td>
+                <td>${r.contract}</td>
+                <td>${r.probability}%</td>
+                <td><span class="risk-cell ${getRiskClass(r.risk_level)}">${r.risk_level}</span></td>
+            </tr>
+        `).join('');
+
+        document.getElementById('batch-results').style.display = 'block';
+        const success = document.getElementById('batch-success');
+        success.textContent = `成功处理 ${results.length} 条记录` + (errors.length ? `，${errors.length} 条出错` : '');
+        success.style.display = 'block';
+    }
+
+    function exportResults() {
+        if (!lastBatchRows.length) {
+            showError('batch-error', '没有可导出的结果');
+            return;
+        }
+        const exportData = lastBatchRows.map(r => ({
+            '序号': r.row,
+            '月消费金额': r.monthly_charges,
+            '老年客户': r.senior_citizen === 1 ? '是' : '否',
+            '在网时长': r.tenure,
+            '支付方式': r.payment_method,
+            '互联网服务': r.internet_service,
+            '合同类型': r.contract,
+            '流失概率': r.probability + '%',
+            '风险等级': r.risk_level,
+            '挽留建议': r.recommendations,
+        }));
+        const ws = XLSX.utils.json_to_sheet(exportData);
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Churn Predictions');
+        const now = new Date();
+        const ts = now.getFullYear() + String(now.getMonth()+1).padStart(2,'0') + String(now.getDate()).padStart(2,'0') + '_' +
+                  String(now.getHours()).padStart(2,'0') + String(now.getMinutes()).padStart(2,'0') + String(now.getSeconds()).padStart(2,'0');
+        XLSX.writeFile(wb, `churn_predictions_${ts}.xlsx`);
+    }
+    </script>
+</body>
+</html>
