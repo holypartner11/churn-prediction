@@ -2,6 +2,12 @@
 
 这是一个基于逻辑回归的客户流失预测 Web 应用，推理逻辑已经和 notebook 里的训练口径对齐。
 
+## 在线访问
+
+纯前端版本已通过 GitHub Pages 部署：
+
+🔗 **https://holypartner11.github.io/churn-prediction**
+
 ## 🧑‍💻 小组成员
 
 | 姓名           | 学号     |
@@ -75,11 +81,6 @@ python app.py
 Windows 推荐双击 [run-me-windows.bat](run-me-windows.bat)。
 Mac 推荐双击 [run-me-macos.command](run-me-macos.command) 或运行 [start-app.sh](start-app.sh)。
 
-## 在线访问
-
-纯前端版本已通过 GitHub Pages 部署：
-
-🔗 **https://holypartner11.github.io/churn-prediction**
 
 ## 批量文件格式
 
